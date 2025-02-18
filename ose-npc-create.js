@@ -7,7 +7,7 @@ on("chat:message", function(msg) {
                 "description": "1st level clerics on a quest for their deity.",
                 "Armour Class": "2 [17]",
                 "Hit Dice": "1 (4hp)",
-                "Attacks": "1 × mace (1d6)",
+                "Attacks": "1 × mace (1d6 × 10)",
                 "THAC0": "19 [0]",
                 "Movement": "60’ (20’)",
                 "Saving Throws": "D11 W12 P14 B16 S15 (Cleric 1)",
@@ -280,7 +280,6 @@ on("chat:message", function(msg) {
                 const attributes = {
                     monsterAc,
                     movementExploration, 
-                    attacks: monster["Attacks"],
                     monsterThac0,
                     monsterBAB,
                     monsterMorale: monster["Morale"],
@@ -325,20 +324,64 @@ on("chat:message", function(msg) {
                     });
                 }
                 
-                let repeatingSection = "repeating_weapons";
-        
-                let rowID = generateRowID();
-                let prefix = repeatingSection + "_" + rowID + "_";
+                const attackString = monster["Attacks"]; 
+                
+                if (!attackString) return;
+                
+                const updates = {};
+                const diceRegex = /(\d*d\d+(?:[+-]\d+)?)/; // Captures standard dice expressions
 
-                setAttrs(character.id, {
-                    [prefix + "weaponAttacks"]: 3,
-                    [prefix + "weaponName"]: "Claw",
-                    [prefix + "weaponDamageDie"]: "1d8+3",
-                    [prefix + "weaponDescription"]: monster["Attacks"]
+                // Function to split attack patterns while ignoring "or" inside parentheses
+                function splitAttacks(input) {
+                    let results = [];
+                    let current = "";
+                    let depth = 0; // Track parentheses depth
+                
+                    for (let i = 0; i < input.length; i++) {
+                        const char = input[i];
+                
+                        if (char === "(") depth++;
+                        if (char === ")") depth--;
+                
+                        // Only split at " or " or ", " if outside parentheses
+                        if ((input.slice(i, i + 4) === " or " || input.slice(i, i + 2) === ", ") && depth === 0) {
+                            results.push(current.trim());
+                            current = "";
+                            i += (input.slice(i, i + 4) === " or ") ? 3 : 1; // Skip delimiter length
+                        } else {
+                            current += char;
+                        }
+                    }
+                
+                    if (current) results.push(current.trim()); // Add the last chunk
+                    return results;
+                }
+                
+                const attackPatterns = splitAttacks(attackString);
+                
+                attackPatterns.forEach(attackEntry => {
+                    const match = attackEntry.match(/(\d+)\s*×\s*([\w\s-]+)\s*\(([^)]+)\)/);
+                    if (match) {
+                        const [, count, name, damageText] = match;
+                        const diceMatch = damageText.match(diceRegex);
+                        const extractedDamage = diceMatch ? diceMatch[0] : "0";
+                
+                        const newRowId = generateRowID();
+                        const repeatingPrefix = `repeating_weapons_${newRowId}`;
+                
+                        updates[`${repeatingPrefix}_weaponAttacks`] = count;
+                        updates[`${repeatingPrefix}_weaponName`] = name.trim();
+                        updates[`${repeatingPrefix}_weaponDamageDie`] = extractedDamage;
+                        updates[`${repeatingPrefix}_weaponDescription`] = attackEntry; // Now stores just the relevant portion
+                    }
                 });
+
+                
+                setAttrs(character.id, updates);
+                sendChat("GM", `/w GM Created ${monster.name}`)
             });
         };
         
-        createNPCs(monsters);    
+        createNPCs(monsters);
     }
 });
