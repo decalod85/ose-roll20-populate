@@ -29,8 +29,7 @@ TODO List for Roll20 Monster Import Project
 	+ Extract structured data from the "notes" field.
 	+ Create abilities in Roll20 based on parsed content.
 + Parse and Add Attacks
-	+ Extract attack details from the "Attacks" field.
-	+ Properly format attacks into Roll20 attributes or abilities.
+	+ fix attacks that have the little x in them
 + Handle Multi-Entry Monsters like Vampires or Elementals
 	+ Identify entries with multiple attributes.
 	+ Develop a method to process and store this data effectively.
